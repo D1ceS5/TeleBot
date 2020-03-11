@@ -2,7 +2,6 @@
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using System.Data.SQLite;
-using Telegram.Bot.Types.ReplyMarkups;
 using System.IO;
 
 namespace TeleBot
