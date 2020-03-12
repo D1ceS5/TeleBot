@@ -4,6 +4,7 @@ using Telegram.Bot.Args;
 using System.Data.SQLite;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.IO;
+using System.Threading;
 
 namespace TeleBot
 {
@@ -15,13 +16,14 @@ namespace TeleBot
         static void Main(string[] args)
         {
             if (!CheckExistDataBase(path))
-                CreateDataBase(path);
+                
+            CreateDataBase(path);
 
-            client = new TelegramBotClient("1030848716:AAGfvtCqc0bL6HV9y_2ddXsRi96GkKnekD0");
+            client = new TelegramBotClient("1147464612:AAH25YAFLH5eGoCJA1pa1DK2pDgkWcdceFs");
             client.OnMessage += getMsg;
-            client.StartReceiving();
             client.OnMessageEdited += editMsg;
-
+            client.StartReceiving();
+           
             Console.Read();
         }
 
@@ -55,6 +57,7 @@ namespace TeleBot
                     try
                     {
                         command.ExecuteNonQuery();
+                       
                     }
                     catch (Exception ex)
                     {
@@ -69,6 +72,7 @@ namespace TeleBot
                     try
                     {
                         command.ExecuteNonQuery();
+                        connection.Close();
                     }
                     catch (Exception ex)
                     {
@@ -84,19 +88,18 @@ namespace TeleBot
         /// <param name="e">Params of inner msg</param>
         private static void getMsg(object sender, MessageEventArgs e)
         {
-            if (e.Message.Text.Contains("/"))
-                return;
             if (e.Message.Type != Telegram.Bot.Types.Enums.MessageType.Text)
                 return;
 
             if (e.Message.ReplyToMessage != null)
             {
-                AddAnswerForQuestionInDataBase(GetIdQuestionInDataBase(e.Message.ReplyToMessage.Text, path), e.Message.Text, path);
+               AddAnswerForQuestionInDataBase(GetIdQuestionInDataBase(e.Message.ReplyToMessage.Text, path), e.Message.Text, path);
+                return;
             }
 
             if (!IsQuestionInDataBase(e.Message.Text, path))
             {
-                AddQuestionInDataBase(e.Message.Text, path);
+               AddQuestionInDataBase(e.Message.Text, path);
                 Console.WriteLine($"Добавлен вопрос {e.Message.Text}");
                 client.SendTextMessageAsync(e.Message.Chat.Id, "Я не знаю ответа... Расскажи мне его, Cударь (нажми редактировать вопрос)");
             }
@@ -123,6 +126,7 @@ namespace TeleBot
                     {
                         command.Parameters.Add(new SQLiteParameter("@text", question));
                         command.ExecuteNonQuery();
+                        connection.Close();
                     }
                     catch (Exception ex)
                     {
@@ -150,7 +154,10 @@ namespace TeleBot
                             reader.Read();
                             //connection.Close();
                             s = reader.GetString(0);
+                            
                         }
+                        reader.Close();
+                        connection.Close();
                     }
                     catch (Exception ex)
                     {
@@ -180,6 +187,8 @@ namespace TeleBot
                             //connection.Close();
                             s = reader.GetInt32(0);
                         }
+                        reader.Close();
+                        connection.Close();
                     }
                     catch (Exception ex)
                     {
@@ -202,7 +211,11 @@ namespace TeleBot
                     {
                         command.Parameters.Add(new SQLiteParameter("@text", answer));
                         command.Parameters.Add(new SQLiteParameter("@id_q", id_question));
+
                         command.ExecuteNonQuery();
+
+                        Console.WriteLine("Answer added "+DateTime.Now.ToLongTimeString());
+                        connection.Close();
                     }
                     catch (Exception ex)
                     {
@@ -219,10 +232,11 @@ namespace TeleBot
         /// <returns></returns>
         private static bool IsQuestionInDataBase(string question, string path_to_db)
         {
+            bool f = false;
             using (SQLiteConnection connection = new SQLiteConnection($"Data Source = {path}"))
             {
                 connection.Open();
-
+               
                 using (SQLiteCommand command = new SQLiteCommand($"SELECT COUNT(*) FROM Question WHERE [TEXT] = @text", connection))
                 {
                     try
@@ -230,11 +244,12 @@ namespace TeleBot
                         command.Parameters.Add(new SQLiteParameter("@text", question));
 
                         object o = command.ExecuteScalar();
+                        connection.Close();
                         if (o != null)
                         {
                             int count = int.Parse(o.ToString());
                             Console.WriteLine(count);
-                            return count > 0;
+                            f =  count > 0;
                         }
                     }
                     catch (Exception ex)
@@ -243,7 +258,7 @@ namespace TeleBot
                     }
                 }
             }
-            return false;
+            return f;
         }
     }
 }
